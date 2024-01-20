@@ -1,42 +1,11 @@
+import datetime as dt
+
+from django.contrib.auth import get_user_model
 from django.db import models
-from django.core.validators import RegexValidator
-from users.models import Name, User
-from datetime import datetime
-from django.conf import settings
 
+from .validators import validate_is_audio
 
-class Championship(models.Model):
-    """Championship model"""
-
-    foreign_url = models.URLField(
-        max_length=40, null=True, blank=True, default=settings.URL_CONFIG
-    )
-    slug = models.CharField(
-        max_length=8,
-        db_index=True,
-        help_text="Поле должно состоять из 8 букв латинского алфавита или цифр",
-        unique=True,
-        validators=[
-            RegexValidator(
-                "^([0-9a-fA-F]{,8})$",
-                message=("Поле заполнено не верно!"),
-            )
-        ],
-        verbose_name="Сокрщенное название чемпионата",
-    )
-    name = models.TextField(
-        max_length=150, verbose_name="Название чемпионата"
-    )
-    author = models.ForeignKey(
-        Name,
-        null=True,
-        related_name="championship_author",
-        verbose_name="Автор чемпионата",
-        on_delete=models.SET_NULL,
-    )
-    date = models.DateField(
-        "Дата добавления игры", auto_now_add=True, null=True
-    )
+User = get_user_model()
 
 
 class Question(models.Model):
@@ -50,34 +19,37 @@ class Question(models.Model):
     comment = models.TextField(
         max_length=4500, blank=True, null=True, verbose_name="Коментарий"
     )
-    author = models.ForeignKey(
-        Name,
-        null=True,
-        db_index=True,
-        related_name="author",
-        verbose_name="Автор вопроса",
-        on_delete=models.SET_NULL,
+
+    images = models.ImageField(
+        blank=True, null=True, verbose_name="Фотографии", upload_to="images/"
     )
-    images_and_audio = models.TextField(verbose_name="Фотографии и аудио")
+    audio = models.FileField(
+        blank=True,
+        null=True,
+        verbose_name="Аудио",
+        upload_to="audio/",
+        validators=(validate_is_audio,),
+    )
     correct_answers = models.PositiveIntegerField(
         verbose_name="Правельные ответы", default=0
     )
     incorrect_answers = models.PositiveIntegerField(
         verbose_name="Неправельные ответы", default=0
     )
-    championship = models.ForeignKey(
-        Championship,
-        on_delete=models.CASCADE,
-        blank=False,
-        null=False,
-        verbose_name="Вопрос чемпионта",
-        related_name="question",
-    )
 
 
 class QuestionUser(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="question_user",
+    )
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="question_user",
+        primary_key=True,
+    )
     create = models.DateTimeField(
-        default=datetime.now() + datetime.time(day=1), auto_now_add=True
+        default=dt.datetime.now() + dt.timedelta(days=1)
     )
